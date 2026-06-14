@@ -49,6 +49,20 @@ export const LogSectionFilterInput = styled.input`
   }
 `;
 
+export const LogSectionDebugSummary = styled.div`
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: ${(props) => props.theme.borderRadius}px;
+  background-color: ${(props) => rgba(props.theme.primary, 0.15)};
+  color: ${(props) => props.theme.text};
+  font-size: 12px;
+  line-height: 20px;
+`;
+
+export const LogSectionDebugItem = styled.div`
+  word-wrap: anywhere;
+`;
+
 export const LogSectionList = styled.ul`
   list-style: none;
   display: flex;

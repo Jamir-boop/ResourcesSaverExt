@@ -37,14 +37,27 @@ export const resolveDuplicatedResources = (resourceList = []) => {
                   ...r,
                   saveAs: {
                     ...r.saveAs,
-                    name: r.saveAs.name.replace(/(\.)(?!.*\.)/g, ` (${rIndex}).`),
-                    path: r.saveAs.path.replace(/(\.)(?!.*\.)/g, ` (${rIndex}).`),
+                    name: addDuplicateIndex(r.saveAs.name, rIndex),
+                    path: addDuplicateIndex(r.saveAs.path, rIndex),
                   },
                 }
           ))
     );
   });
   return result;
+};
+
+export const addDuplicateIndex = (path, index) => {
+  const lastSlashIndex = path.lastIndexOf('/');
+  const directory = lastSlashIndex >= 0 ? path.slice(0, lastSlashIndex + 1) : '';
+  const filename = lastSlashIndex >= 0 ? path.slice(lastSlashIndex + 1) : path;
+  const lastDotIndex = filename.lastIndexOf('.');
+
+  if (lastDotIndex > 0) {
+    return `${directory}${filename.slice(0, lastDotIndex)} (${index})${filename.slice(lastDotIndex)}`;
+  }
+
+  return `${directory}${filename} (${index})`;
 };
 
 export const downloadZipFile = (toDownload, options, eachDoneCallback, callback) => {
@@ -77,7 +90,7 @@ export const addItemsToZipWriter = (zipWriter, items, options, eachDoneCallback,
   // if item exist so add it to zip
   if (item) {
     // Beautify here
-    if (options?.beautifyFile && !item.encoding && !!item.content) {
+    if (options?.beautifyFile && !item.skipBeautify && !item.encoding && !!item.content) {
       try {
         const fileExt = item.saveAs?.name?.match(/\.([0-9a-z]+)(?:[\?#]|$)/);
         switch (fileExt ? fileExt[1] : '') {

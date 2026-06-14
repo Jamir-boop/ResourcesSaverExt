@@ -3,6 +3,8 @@ import {
   LogSectionFilter,
   LogSectionFilterInput,
   LogSectionFilterToggle,
+  LogSectionDebugItem,
+  LogSectionDebugSummary,
   LogSectionList,
   LogSectionListItem,
   LogSectionTitle,
@@ -23,6 +25,7 @@ export const TABS_COLORS = {
 
 export const LogSection = (props) => {
   const { log } = props;
+  const debug = log.debug;
   const [filter, setFilter] = useState(``);
   const [viewTab, setViewTab] = useState(LOG_TABS.SUCCESS);
   const [toggleUrls, setToggleUrls] = useState({});
@@ -51,6 +54,16 @@ export const LogSection = (props) => {
   return (
     <LogSectionWrapper>
       <LogSectionTitle>Download log</LogSectionTitle>
+      {debug && (
+        <LogSectionDebugSummary>
+          <LogSectionDebugItem>Version: {debug.version}</LogSectionDebugItem>
+          <LogSectionDebugItem>Debugger errors: {debug.debugger?.errors?.length || 0}</LogSectionDebugItem>
+          <LogSectionDebugItem>Source maps found: {debug.sourceMaps?.found?.length || 0}</LogSectionDebugItem>
+          <LogSectionDebugItem>Source maps loaded: {debug.sourceMaps?.loaded?.filter((item) => item.ok).length || 0}</LogSectionDebugItem>
+          <LogSectionDebugItem>Sources generated: {debug.sources?.generated?.length || 0}</LogSectionDebugItem>
+          <LogSectionDebugItem>Sources missing: {debug.sources?.missing?.length || 0}</LogSectionDebugItem>
+        </LogSectionDebugSummary>
+      )}
       <LogSectionFilter>
         <LogSectionFilterToggle>
           <Toggle

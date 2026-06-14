@@ -2,10 +2,13 @@ import { useCallback, useEffect, useRef } from 'react';
 import * as uiActions from '../store/ui';
 import { downloadZipFile, resolveDuplicatedResources } from '../utils/file';
 import { logResourceByUrl } from '../utils/resource';
+import { collectDebuggerSourceMapData } from '../utils/debugger';
+import { createDebugResource, expandSourceMapsForDownload } from '../utils/sourceMap';
 import { resetNetworkResource } from '../store/networkResource';
 import { resetStaticResource } from '../store/staticResource';
 import { INITIAL_STATE as UI_INITIAL_STATE } from '../store/ui';
 import useStore from '../store';
+import packageJson from '/package.json';
 
 export const useAppSaveAllResource = () => {
   const { state, dispatch } = useStore();
@@ -50,11 +53,25 @@ export const useAppSaveAllResource = () => {
             }, 500);
           });
         }
-        const toDownload = resolveDuplicatedResources([
+        const baseResources = [
           ...(networkResourceRef.current || []),
           ...(staticResourceRef.current || []),
-        ]);
-        console.log(toDownload.filter(t => typeof t?.content !== 'string' && !!t?.content?.then));
+        ];
+        dispatch(uiActions.setStatus(`Collecting source maps...`));
+        const debuggerResult = await collectDebuggerSourceMapData(chrome.devtools.inspectedWindow.tabId);
+        const sourceMapResult = await expandSourceMapsForDownload({
+          resources: baseResources,
+          debuggerResult,
+          version: packageJson?.version || 'LOCAL',
+          tabUrl: downloadItem.url,
+          options: { ignoreNoContentFile, beautifyFile },
+        });
+        const debugResource = createDebugResource(sourceMapResult.debug);
+        const toDownload = resolveDuplicatedResources([...baseResources, ...sourceMapResult.resources, debugResource]);
+        sourceMapResult.debug.finalZipPaths = toDownload.map((item) => item.saveAs?.path).filter(Boolean);
+        debugResource.content = JSON.stringify(sourceMapResult.debug, null, 2);
+        console.log('[SOURCE MAP]', sourceMapResult.debug);
+        console.log(toDownload.filter((t) => typeof t?.content !== 'string' && !!t?.content?.then));
         if (loaded && toDownload.length) {
           downloadZipFile(
             toDownload,
@@ -63,7 +80,7 @@ export const useAppSaveAllResource = () => {
               dispatch(uiActions.setStatus(`Compressed: ${item.url} Processed: ${isDone}`));
             },
             () => {
-              logResourceByUrl(dispatch, downloadItem.url, toDownload);
+              logResourceByUrl(dispatch, downloadItem.url, toDownload, sourceMapResult.debug);
               if (i + 1 !== downloadList.length) {
                 dispatch(resetNetworkResource());
                 dispatch(resetStaticResource());
@@ -71,6 +88,8 @@ export const useAppSaveAllResource = () => {
               resolve();
             }
           );
+        } else {
+          resolve();
         }
       });
     }

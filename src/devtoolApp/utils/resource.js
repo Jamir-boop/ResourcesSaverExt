@@ -15,6 +15,10 @@ export const flashStatusDebounced = debounce((dispatch, message, timeout = 1000)
   dispatch(flashStatus(message, timeout));
 }, 50);
 
+const addStaticResource = (dispatch, meta) => {
+  dispatch(staticResourceActions.addStaticResource(meta));
+};
+
 export const processNetworkResourceToStore = (dispatch, res) => {
   // logIfDev('[NETWORK] Resource: ', res);
   flashStatusDebounced(dispatch, `[NETWORK] Processing: ${res.request?.url || `No Url`}`);
@@ -27,17 +31,17 @@ export const processNetworkResourceToStore = (dispatch, res) => {
       const contentTypeMatches = contentTypeHeader?.value?.match(/^(?<contentType>.*?);/);
       const contentType = contentTypeMatches?.groups?.contentType;
       const type = uriDataType || mimeType || contentType;
-      dispatch(
-        networkResourceActions.addNetworkResource({
-          source: SOURCES.NETWORK,
-          url: res.request.url,
-          type,
-          content,
-          encoding,
-          origin: res,
-          saveAs: resolveURLToPath(res.request.url, type, content),
-        })
-      );
+      const meta = {
+        source: SOURCES.NETWORK,
+        url: res.request.url,
+        type,
+        content,
+        encoding,
+        origin: res,
+        saveAs: resolveURLToPath(res.request.url, type, content),
+      };
+
+      dispatch(networkResourceActions.addNetworkResource(meta));
     });
   }
 };
@@ -70,29 +74,32 @@ export const processStaticResourceToStore = (dispatch, res) => {
         fetch(res.url)
           .then(async (retryRequest) => {
             if (retryRequest.ok) {
-              meta.content = await retryRequest.blob();
+              meta.content = res.url.toLowerCase().split('#')[0].split('?')[0].endsWith('.map')
+                ? await retryRequest.text()
+                : await retryRequest.blob();
             } else {
               meta.failed = true;
             }
-            dispatch(staticResourceActions.addStaticResource(meta));
+            addStaticResource(dispatch, meta);
           })
           .catch((err) => {
             console.log(`[STATIC]: Error ${res.url}`, err);
             meta.failed = true;
-            dispatch(staticResourceActions.addStaticResource(meta));
+            addStaticResource(dispatch, meta);
           });
       } else {
-        dispatch(staticResourceActions.addStaticResource(meta));
+        addStaticResource(dispatch, meta);
       }
     });
   }
 };
 
-export const logResourceByUrl = (dispatch, url, resources) => {
+export const logResourceByUrl = (dispatch, url, resources, debug) => {
   console.debug(`[ALL] Now log resource state from url: `, url);
   dispatch(
     downloadLogActions.addLogItem({
       url: url,
+      debug,
       logs: resources.map((i) => ({
         failed: i.failed,
         hasContent: !!i.content,
